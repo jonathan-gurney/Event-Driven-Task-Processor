@@ -23,6 +23,15 @@ jobs:
       - name: Install backend dependencies
         run: npm install
 
+      - name: Ensure backend env file exists
+        run: cp .env.example .env
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Apply Prisma migrations
+        run: npx prisma migrate deploy
+
       - name: Ensure Rollup native binary is available
         run: |
           node -e "require.resolve('@rollup/rollup-linux-x64-gnu')" \
