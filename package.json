@@ -1,0 +1,36 @@
+{
+  "name": "event-driven-task-processor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A small Node.js + TypeScript backend for asynchronous task processing with Fastify, Prisma, and SQLite.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "demo": "sh scripts/demo.sh",
+    "docker:dev": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.2",
+    "@fastify/cors": "^11.1.0",
+    "fastify": "^5.8.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.15",
+    "prisma": "^6.19.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

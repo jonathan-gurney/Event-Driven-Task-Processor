@@ -1,0 +1,38 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  type        String
+  payloadJson String
+  status      String     @default("pending")
+  attempts    Int        @default(0)
+  maxAttempts Int        @default(3)
+  scheduledAt DateTime   @default(now())
+  lastError   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  eventLogs   EventLog[]
+}
+
+model EventLog {
+  id          String   @id @default(cuid())
+  taskId      String
+  eventType   String
+  payloadJson String
+  createdAt   DateTime @default(now())
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([eventType])
+  @@index([createdAt])
+}
