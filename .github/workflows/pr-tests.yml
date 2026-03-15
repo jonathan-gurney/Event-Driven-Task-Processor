@@ -23,6 +23,11 @@ jobs:
       - name: Install backend dependencies
         run: npm install
 
+      - name: Ensure Rollup native binary is available
+        run: |
+          node -e "require.resolve('@rollup/rollup-linux-x64-gnu')" \
+            || npm install --no-save @rollup/rollup-linux-x64-gnu
+
       - name: Run backend test suite
         run: npm test
 
