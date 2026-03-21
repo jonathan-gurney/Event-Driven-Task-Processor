@@ -2,15 +2,15 @@
 
 ## Overview
 
-Event-Driven Task Processor is a small backend portfolio project built with Node.js, TypeScript, Fastify, Prisma, and SQLite. It accepts tasks over HTTP, records them in a database, emits internal events, processes work asynchronously, retries failures, and exposes task history through an event log endpoint.
+This is a portfolio project I built to demonstrate some backend engineering concepts I find genuinely interesting — specifically around asynchronous processing and event-driven design. The stack is Node.js, TypeScript, Fastify, Prisma, and SQLite, with a React + Vite frontend to make the internal task lifecycle visible in the browser.
 
-The repository now includes a small React + Vite frontend for visualising tasks and event lifecycles in the browser.
+The idea was to build something small enough to actually understand end-to-end, but structured in a way that shows more than just basic CRUD. 
 
-The goal is to demonstrate solid backend engineering fundamentals in a project that is easy to understand, run locally, and talk through in an interview.
+## Why this instead of another CRUD app
 
-## Why it stands out
+Most portfolio projects I've seen are variations on the same REST API — create, read, update, delete, done. This one goes a bit further. Tasks are accepted over HTTP, stored in a database, then processed asynchronously by a worker that subscribes to internal events. Failed tasks get retried automatically up to a configurable limit, and every step gets written to an event log so you can see exactly what happened and when.
 
-This is intentionally a "small but serious" system. Instead of only showing CRUD endpoints, it demonstrates asynchronous processing, explicit event history, retry behavior, and a UI that makes the internal lifecycle visible. That makes it easier to discuss system design tradeoffs in a portfolio review or interview.
+The React frontend makes all of this visible without needing to curl anything.
 
 ## Quick start
 
@@ -19,43 +19,39 @@ cp .env.example .env
 docker compose up --build
 ```
 
-`.env`, `prisma/dev.db`, build output, and `node_modules` are local-only files and are intentionally ignored by Git so the repository stays safe to publish.
+`.env`, `prisma/dev.db`, build output, and `node_modules` are all gitignored — the repo is safe to publish as-is.
 
-Then open:
+Once it's running:
 
 - Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:3000`
+- API: `http://localhost:3000`
 
-## Why this project exists
+## What it demonstrates
 
-This project exists to show how a simple service can be structured around event-driven concepts without requiring production-scale infrastructure. It focuses on architecture, separation of concerns, and operational clarity rather than complexity for its own sake.
-
-## Skills demonstrated
-
-- Designing a small event-driven backend with clear boundaries between API, domain events, worker logic, retry logic, and persistence.
-- Building HTTP APIs with Fastify and validating requests with Zod.
-- Modeling relational persistence with Prisma and SQLite.
-- Representing asynchronous workflows with event logs and explicit lifecycle events.
-- Writing practical tests for API, worker, and integration behavior with Vitest.
-- Packaging a project for local-first development using Docker.
+- Separating concerns between the API layer, domain events, worker logic, retry logic, and persistence
+- Building HTTP APIs with Fastify and validating requests with Zod
+- Relational persistence with Prisma and SQLite
+- Representing async workflows with an explicit event log
+- Writing practical tests for API, worker, and integration behavior with Vitest
+- Packaging everything for local-first development with Docker
 
 ## Features
 
-- `POST /tasks` to create a task
-- `GET /tasks` to list recent tasks
-- `GET /tasks/:id` to fetch task status
-- `GET /tasks/:id/events` to inspect the full event history
-- React dashboard for creating tasks and viewing task history
+- `POST /tasks` — create a task
+- `GET /tasks` — list recent tasks
+- `GET /tasks/:id` — fetch task status
+- `GET /tasks/:id/events` — inspect the full event history
+- React dashboard for submitting tasks and viewing results
 - In-process event bus for task orchestration
 - Background worker that processes tasks asynchronously
-- Retry scheduler for failed tasks up to `maxAttempts`
-- Event log persistence for demo visibility and debugging
+- Retry scheduler for failed tasks, up to `maxAttempts`
+- Event log persistence for visibility and debugging
 
-## Architecture summary
+## How it works
 
-The API layer accepts requests and stores tasks, but it does not perform the work directly. Instead, it emits `task.created`. The worker subscribes to internal events, converts creation into `task.process_requested`, updates task state as work begins, and records success or failure outcomes. A local retry scheduler periodically looks for failed tasks that still have attempts remaining and republishes `task.process_requested`.
+The API accepts a request and stores the task, but doesn't do the actual work itself. Instead, it emits `task.created`. The worker picks that up, converts it into `task.process_requested`, updates task state, and records either success or failure. A retry scheduler runs in the background and republishes `task.process_requested` for any failed tasks that still have attempts remaining.
 
-This keeps the control flow easy to explain:
+The control flow is intentionally easy to trace:
 
 1. Accept request
 2. Persist task
@@ -64,7 +60,7 @@ This keeps the control flow easy to explain:
 5. Record event history
 6. Retry if eligible
 
-## Example API usage
+## Example usage
 
 Create a task:
 
@@ -74,7 +70,7 @@ curl -X POST http://localhost:3000/tasks \
   -d '{"type":"generate_report_mock","payload":{"reportName":"weekly-sales"}}'
 ```
 
-Create a task that fails and triggers retries:
+Create a task that deliberately fails (useful for seeing retry behaviour):
 
 ```bash
 curl -X POST http://localhost:3000/tasks \
@@ -82,32 +78,27 @@ curl -X POST http://localhost:3000/tasks \
   -d '{"type":"generate_report_mock","payload":{"reportName":"weekly-sales","shouldFail":true}}'
 ```
 
-Fetch task details:
+Fetch a task and its event history:
 
 ```bash
 curl http://localhost:3000/tasks/<task-id>
-```
-
-Fetch task event history:
-
-```bash
 curl http://localhost:3000/tasks/<task-id>/events
 ```
 
-## Example event lifecycle
+## Event lifecycle
 
-A successful task typically produces this sequence:
+A successful task looks like this:
 
-```text
+```
 task.created
 task.process_requested
 task.processing_started
 task.completed
 ```
 
-A failing task produces retries until `maxAttempts` is reached:
+A failing task keeps retrying until it hits `maxAttempts`:
 
-```text
+```
 task.created
 task.process_requested
 task.processing_started
@@ -118,84 +109,71 @@ task.processing_started
 task.failed
 ```
 
-## Local run instructions
-
-1. Copy the environment file:
+## Running it locally
 
 ```bash
+# 1. Copy the env file
 cp .env.example .env
-```
 
-The copied `.env` file is for local use only and should not be committed. The same applies to the local SQLite database at `prisma/dev.db`.
-
-2. Start the backend and frontend in Docker:
-
-```bash
+# 2. Start everything
 docker compose up --build
-```
 
-3. Confirm both containers are running:
-
-```bash
+# 3. Check containers are running
 docker compose ps
-```
 
-4. Open the apps:
+# 4. Open the apps
+# Frontend: http://localhost:5173
+# API:      http://localhost:3000
 
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:3000`
-
-5. Stop the stack when you are finished:
-
-```bash
+# 5. Stop when done
 docker compose down
 ```
 
-You can also run the bundled demo helper:
+There's also a demo helper if you want to see it all in action quickly:
 
 ```bash
 npm run demo
 ```
 
-## Example terminal output
+## Example output
 
-```text
+```bash
 $ curl -X POST http://localhost:3000/tasks \
   -H "Content-Type: application/json" \
   -d '{"type":"generate_report_mock","payload":{"reportName":"weekly-sales"}}'
 
-{"item":{"id":"cm8x...","type":"generate_report_mock","reportName":"weekly-sales","status":"pending","attempts":0,"createdAt":"2026-03-14T18:00:00.000Z","lastError":null}}
+{"item":{"id":"cm8x...","type":"generate_report_mock","status":"pending","attempts":0,...}}
 ```
 
-```text
+```bash
 $ curl http://localhost:3000/tasks/cm8x.../events
 
 {"items":[
-  {"eventType":"task.created","createdAt":"2026-03-14T18:00:00.000Z","payloadJson":"{\"type\":\"generate_report_mock\",\"payload\":{\"reportName\":\"weekly-sales\"}}"},
-  {"eventType":"task.process_requested","createdAt":"2026-03-14T18:00:00.001Z","payloadJson":"{\"source\":\"task.created\",\"type\":\"generate_report_mock\",\"payload\":{\"reportName\":\"weekly-sales\"}}"},
-  {"eventType":"task.processing_started","createdAt":"2026-03-14T18:00:00.002Z","payloadJson":"{\"type\":\"generate_report_mock\"}"},
-  {"eventType":"task.completed","createdAt":"2026-03-14T18:00:00.003Z","payloadJson":"{\"type\":\"generate_report_mock\"}"}
+  {"eventType":"task.created","createdAt":"..."},
+  {"eventType":"task.process_requested","createdAt":"..."},
+  {"eventType":"task.processing_started","createdAt":"..."},
+  {"eventType":"task.completed","createdAt":"..."}
 ]}
 ```
 
-## Frontend overview
+## Frontend
 
-The frontend is intentionally lightweight, but it is designed to help a reviewer understand the system quickly:
+The frontend is lightweight on purpose. It's there to make the system easy to demo, not to show off UI skills. The three pages are:
 
-- `/` shows the task dashboard
-- `/create` submits a new mock task
-- `/tasks/:id` shows task details and the event timeline
+- `/` — task dashboard
+- `/create` — submit a new task
+- `/tasks/:id` — task details and event timeline
 
-The dashboard highlights the stack and request flow at a glance, and the UI polls task details every two seconds until the task reaches `completed` or `failed`, which makes the async flow easy to demo.
+The detail page polls every two seconds until a task reaches `completed` or `failed`, which makes the async behaviour easy to watch in real time.
 
-For local development, the API currently allows CORS from `http://localhost:5173` and `http://127.0.0.1:5173`. If you deploy the frontend elsewhere, update the backend CORS allowlist first.
+CORS is currently configured to allow `http://localhost:5173` and `http://127.0.0.1:5173`. If you deploy the frontend somewhere else, update the backend allowlist first.
 
-## Future improvements
+## What I'd improve with more time
 
-- Replace the in-process event bus with Redis, RabbitMQ, or Kafka
-- Move worker and API into separate deployable services
-- Add exponential backoff and richer retry policies
+- Swap the in-process event bus for something like Redis, RabbitMQ, or Kafka
+- Split the worker and API into separate deployable services
+- Add exponential backoff to the retry logic
 - Add task filtering, pagination, and event search
-- Add metrics, structured tracing, and better operational visibility
+- Add metrics and structured tracing
 - Support more task types beyond the mock report generator
-- Serve the frontend as a static production build behind the API or a reverse proxy
+- Serve the frontend as a static build behind the API or a reverse proxy
